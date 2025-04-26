@@ -1,5 +1,5 @@
-import { FiMinus, FiPlus, FiTrash2, FiClipboard, FiFilm, FiFileText, FiGlobe, FiImage, FiSettings } from 'react-icons/fi';
-import React from 'react';
+import { FiMinus, FiPlus, FiTrash2, FiClipboard, FiFilm, FiFileText, FiGlobe, FiImage, FiSettings, FiType } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
 import { PdfPageSize, PdfOrientation } from '@/utils/editorUtils';
 
 interface SettingsPanelProps {
@@ -16,7 +16,7 @@ interface SettingsPanelProps {
   copyToClipboard: () => void;
   downloadText: () => void;
   exportAsMarkdown: () => void;
-  exportAsPDF: (pageSize?: PdfPageSize, orientation?: PdfOrientation) => void;
+  exportAsPDF: (pageSize?: PdfPageSize, orientation?: PdfOrientation, header?: string, footer?: string) => void;
   exportAsHtml: () => void;
   exportAsWord: () => void;
   exportAsImage: () => void;
@@ -43,6 +43,28 @@ export default function SettingsPanel({
   exportAsImage,
   isDark
 }: SettingsPanelProps) {
+  const [headerText, setHeaderText] = useState('');
+  const [footerText, setFooterText] = useState('');
+  const [showHeaderFooter, setShowHeaderFooter] = useState(false);
+
+  // Load saved header/footer from localStorage when component mounts
+  useEffect(() => {
+    const savedHeader = localStorage.getItem('headerText');
+    const savedFooter = localStorage.getItem('footerText');
+    
+    if (savedHeader) setHeaderText(savedHeader);
+    if (savedFooter) setFooterText(savedFooter);
+  }, []);
+
+  // Save header/footer to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('headerText', headerText);
+    localStorage.setItem('footerText', footerText);
+  }, [headerText, footerText]);
+
+  const handleExportPDF = (pageSize: PdfPageSize, orientation: PdfOrientation) => {
+    exportAsPDF(pageSize, orientation, headerText, footerText);
+  };
 
   return (
     <div 
@@ -145,6 +167,68 @@ export default function SettingsPanel({
         </div>
       </div>
 
+      {/* Header and Footer Options */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <div className={`text-sm font-medium pb-2 ${isDark ? 'text-white' : 'text-black-700'}`}>
+            <div className="flex items-center gap-2">
+              <FiType className="h-4 w-4 text-blue-500" />
+              <span>Header & Footer</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowHeaderFooter(!showHeaderFooter)}
+            className={`text-xs font-medium px-3 py-1 rounded-md ${
+              isDark ? 'bg-black-700 hover:bg-black-600 text-black-300' : 'bg-black-100 hover:bg-black-200 text-black-600'
+            }`}
+          >
+            {showHeaderFooter ? 'Hide Options' : 'Show Options'}
+          </button>
+        </div>
+        
+        {showHeaderFooter && (
+          <div className={`p-4 rounded-lg mb-4 ${isDark ? 'bg-black-700' : 'bg-black-100'}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className={`block text-xs font-medium ${isDark ? 'text-black-300' : 'text-black-600'}`}>
+                  Header Text
+                </label>
+                <input
+                  type="text"
+                  value={headerText}
+                  onChange={(e) => setHeaderText(e.target.value)}
+                  placeholder="Enter header text (optional)"
+                  className={`w-full px-3 py-2 rounded-md text-sm ${
+                    isDark ? 'bg-black-600 border-black-500 text-white placeholder-black-400' : 'bg-white border-black-300 placeholder-black-500'
+                  } border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200`}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className={`block text-xs font-medium ${isDark ? 'text-black-300' : 'text-black-600'}`}>
+                  Footer Text
+                </label>
+                <input
+                  type="text"
+                  value={footerText}
+                  onChange={(e) => setFooterText(e.target.value)}
+                  placeholder="Enter footer text (optional)"
+                  className={`w-full px-3 py-2 rounded-md text-sm ${
+                    isDark ? 'bg-black-600 border-black-500 text-white placeholder-black-400' : 'bg-white border-black-300 placeholder-black-500'
+                  } border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200`}
+                />
+              </div>
+            </div>
+            
+            <div className="mt-3 text-xs text-black-500 italic">
+              <p className={isDark ? 'text-black-400' : 'text-black-500'}>
+                Header and footer will be applied when exporting to PDF. They will appear at the top and bottom of each page.
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Export Options Section */}
       <div className="mt-6">
         <div className={`text-sm font-medium mb-3 pb-2 border-b ${isDark ? 'border-black-700 text-white' : 'border-black-300 text-black-700'}`}>
@@ -180,7 +264,7 @@ export default function SettingsPanel({
             isDark={isDark} 
           />
           <ExportButton 
-            onClick={() => exportAsPDF(PdfPageSize.A4, PdfOrientation.PORTRAIT)} 
+            onClick={() => handleExportPDF(PdfPageSize.A4, PdfOrientation.PORTRAIT)} 
             icon={<FiFilm className="h-4 w-4" />} 
             label="PDF" 
             color="red" 
@@ -202,22 +286,22 @@ export default function SettingsPanel({
           </div>
           <div className="flex flex-wrap gap-2">
             <PdfOptionButton 
-              onClick={() => exportAsPDF(PdfPageSize.A4, PdfOrientation.PORTRAIT)} 
+              onClick={() => handleExportPDF(PdfPageSize.A4, PdfOrientation.PORTRAIT)} 
               label="A4 Portrait" 
               isDark={isDark} 
             />
             <PdfOptionButton 
-              onClick={() => exportAsPDF(PdfPageSize.A4, PdfOrientation.LANDSCAPE)} 
+              onClick={() => handleExportPDF(PdfPageSize.A4, PdfOrientation.LANDSCAPE)} 
               label="A4 Landscape" 
               isDark={isDark} 
             />
             <PdfOptionButton 
-              onClick={() => exportAsPDF(PdfPageSize.LETTER, PdfOrientation.PORTRAIT)} 
+              onClick={() => handleExportPDF(PdfPageSize.LETTER, PdfOrientation.PORTRAIT)} 
               label="Letter" 
               isDark={isDark} 
             />
             <PdfOptionButton 
-              onClick={() => exportAsPDF(PdfPageSize.LEGAL, PdfOrientation.PORTRAIT)} 
+              onClick={() => handleExportPDF(PdfPageSize.LEGAL, PdfOrientation.PORTRAIT)} 
               label="Legal" 
               isDark={isDark} 
             />

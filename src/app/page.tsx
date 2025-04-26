@@ -26,7 +26,7 @@ export default function Home() {
   
   // Use correct type for useLocalStorageValue
   const textStorage = useLocalStorageValue<string>('editorText', {
-    defaultValue: 'Start typing here...'
+    defaultValue: ''
   });
   const text = textStorage.value ?? 'Start typing here...';
   const setText = textStorage.set;
@@ -279,10 +279,10 @@ export default function Home() {
   };
 
   // Export as PDF functionality
-  const handleExportAsPDF = async (pageSize?: PdfPageSize, orientation?: PdfOrientation) => {
-    console.log("handleExportAsPDF called with:", text, fileName, fontSize, pageSize, orientation);
+  const handleExportAsPDF = async (pageSize?: PdfPageSize, orientation?: PdfOrientation, header?: string, footer?: string) => {
+    console.log("handleExportAsPDF called with:", text, fileName, fontSize, pageSize, orientation, header, footer);
     try {
-      await downloadAsPDF(text, fileName, fontSize, pageSize, orientation);
+      await downloadAsPDF(text, fileName, fontSize, pageSize, orientation, header, footer);
       console.log("PDF export completed successfully");
     } catch (error) {
       console.error("Error in PDF export:", error);

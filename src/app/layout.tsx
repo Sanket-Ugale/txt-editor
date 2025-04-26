@@ -25,20 +25,20 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TextEditor Pro - Modern Rich Text Editing",
+  title: "Turbo Text Editor - Modern Rich Text Editing",
   description: "A modern rich text editor with advanced formatting, theme switching, and multiple export formats",
   keywords: ["text editor", "rich text", "document editor", "notes", "writing", "markdown", "formatting"],
-  authors: [{ name: "TextEditor Team" }],
+  authors: [{ name: "Turbo Text Editor Team" }],
   viewport: "width=device-width, initial-scale=1",
   openGraph: {
-    title: "TextEditor Pro",
+    title: "Turbo Text Editor",
     description: "A modern rich text editor with advanced formatting and export options",
     type: "website",
     images: [{ url: "/og-image.png" }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "TextEditor Pro",
+    title: "Turbo Text Editor",
     description: "A modern rich text editor with advanced formatting and export options",
     images: ["/twitter-image.png"]
   },

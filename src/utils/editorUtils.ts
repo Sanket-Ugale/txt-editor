@@ -227,7 +227,9 @@ export const downloadAsPDF = async (
   fileName: string, 
   fontSize: number,
   pageSize: PdfPageSize = PdfPageSize.A4,
-  orientation: PdfOrientation = PdfOrientation.PORTRAIT
+  orientation: PdfOrientation = PdfOrientation.PORTRAIT,
+  headerText?: string,
+  footerText?: string
 ) => {
   try {
     toast.info('Preparing PDF...', { 
@@ -283,17 +285,65 @@ export const downloadAsPDF = async (
     // Calculate number of lines that fit on one page
     const lineHeight = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
     
+    // Header and footer settings
+    const hasHeader = headerText && headerText.trim() !== '';
+    const hasFooter = footerText && footerText.trim() !== '';
+    
+    // Create a function to add header and footer to each page
+    const addHeaderFooter = (pageNum: number) => {
+      if (hasHeader) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100); // Gray color for header/footer
+        pdf.text(headerText!, margin, 10); // Header at 10mm from top
+        
+        // Add a light line below the header
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, 13, pageWidth - margin, 13);
+        
+        // Reset colors
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(fontSize * 0.75);
+      }
+      
+      if (hasFooter) {
+        pdf.setFontSize(10);
+        pdf.setTextColor(100, 100, 100);
+        
+        // Add a light line above the footer
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin, pageHeight - 13, pageWidth - margin, pageHeight - 13);
+        
+        // Add page number to footer if specified with {page} placeholder
+        let footerContent = footerText!;
+        if (footerContent.includes('{page}')) {
+          footerContent = footerContent.replace('{page}', (pageNum + 1).toString());
+        }
+        
+        pdf.text(footerContent, margin, pageHeight - 10); // Footer at 10mm from bottom
+        
+        // Reset colors
+        pdf.setTextColor(0, 0, 0);
+        pdf.setFontSize(fontSize * 0.75);
+      }
+    };
+    
     // Add text to pages
     let currentPage = 0;
     let y = startY;
     
+    // Add header and footer to first page
+    addHeaderFooter(currentPage);
+    
     for (let i = 0; i < textLines.length; i++) {
       // If we've reached the bottom margin or first line of a new page
-      if (y > pageHeight - margin || 
+      if (y > pageHeight - (margin + (hasFooter ? 10 : 0)) || 
           (currentPage > 0 && y === startY)) {
         pdf.addPage();
         currentPage++;
         y = startY;
+        
+        // Add header and footer to the new page
+        addHeaderFooter(currentPage);
       }
       
       // Add the text line

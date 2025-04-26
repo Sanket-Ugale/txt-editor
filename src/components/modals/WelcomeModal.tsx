@@ -20,7 +20,7 @@ export default function WelcomeModal({ isDark, onClose }: WelcomeModalProps) {
         exit={{ scale: 0.9 }}
       >
         <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-bold">Welcome to TextEditor Pro 👋</h2>
+          <h2 className="text-xl font-bold">Welcome to Turbo Text Editor 👋</h2>
           <button 
             onClick={onClose}
             className="text-black-500 hover:text-black-800 dark:hover:text-black-200"
