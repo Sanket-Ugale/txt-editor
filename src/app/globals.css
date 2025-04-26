@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Base transitions for all elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Improved animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -14,7 +22,22 @@
 }
 
 .animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes pulseGlow {
@@ -22,7 +45,7 @@
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
   }
   70% {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
   }
   100% {
     box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
@@ -46,12 +69,12 @@
 }
 
 .dropdown-menu {
-  animation: slideDown 0.2s ease-out forwards;
+  animation: slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
   z-index: 100;
   position: absolute;
 }
 
-/* Custom scrollbar for webkit browsers */
+/* Enhanced scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -63,46 +86,40 @@
 
 ::-webkit-scrollbar-thumb {
   background: rgba(156, 163, 175, 0.5);
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(107, 114, 128, 0.7);
 }
 
-/* Custom scrollbar for Firefox */
+/* Firefox scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
 }
 
-/* Dark mode text selection */
+/* Selection styling */
 .dark ::selection {
   background-color: rgba(59, 130, 246, 0.5);
   color: #ffffff;
 }
 
-/* Light mode text selection */
 ::selection {
   background-color: rgba(59, 130, 246, 0.25);
   color: #000000;
-}
-
-/* Smooth transitions */
-* {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 200ms;
 }
 
 /* Focus styles */
 :focus-visible {
   outline: 2px solid rgb(59, 130, 246);
   outline-offset: 2px;
+  transition: outline-offset 0.1s ease;
 }
 
-/* Z-index management - Increase the values significantly to ensure proper stacking */
+/* Z-index management */
 .z-dropdown {
-  z-index: 9999 !important; /* Use !important to override any inline styles */
+  z-index: 9999 !important;
   position: relative;
 }
 
@@ -115,31 +132,74 @@
   z-index: 1 !important;
 }
 
-/* Background gradients for dark mode */
+/* Background styling */
 .dark body {
   background: linear-gradient(135deg, #1a1c23 0%, #121417 100%);
 }
 
-/* Custom utility classes */
+body {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+}
+
+/* Glass morphism */
 .bg-glass-light {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 }
 
 .bg-glass-dark {
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(10px);
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(12px);
   border: 1px solid rgba(55, 65, 81, 0.3);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
-/* Improve text area styling */
+/* Textarea improvements */
 textarea {
   background-image: linear-gradient(transparent, transparent);
   -webkit-appearance: none;
+  resize: none;
+  overflow: auto;
 }
 
-/* Make dropdown menus more visible */
+/* Button hover effects */
+.btn-hover-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-hover-effect:after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  opacity: 0;
+  border-radius: 100%;
+  transform: scale(1, 1) translate(-50%, -50%);
+  transform-origin: 50% 50%;
+}
+
+.btn-hover-effect:hover:after {
+  animation: ripple 0.75s ease-out;
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0, 0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(30, 30);
+    opacity: 0;
+  }
+}
+
+/* Dropdown improvements */
 .dropdown-menu-container {
   isolation: isolate;
   position: relative;
@@ -149,16 +209,64 @@ textarea {
 .dropdown-dark {
   background-color: rgba(31, 41, 55, 0.98);
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(55, 65, 81, 0.3);
+  border-radius: 0.375rem;
 }
 
 .dropdown-light {
   background-color: rgba(255, 255, 255, 0.98);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(229, 231, 235, 0.5);
+  border-radius: 0.375rem;
 }
 
-/* Force dropdowns to appear on top */
-.dropdown-menu {
-  animation: slideDown 0.2s ease-out forwards;
-  z-index: 9999 !important;
+/* Common utility classes */
+.text-shadow-sm {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.hover-scale {
+  transition: transform 0.2s;
+}
+
+.hover-scale:hover {
+  transform: scale(1.05);
+}
+
+/* Loading animations */
+@keyframes shimmer {
+  100% { 
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.animate-shimmer::after {
+  content: '';
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+.dark .animate-shimmer::after {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
 }

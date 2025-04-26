@@ -615,7 +615,7 @@ export default function Home() {
   return (
     <main 
       className={`min-h-screen transition-all duration-500 ${
-        isDark ? 'bg-gradient-to-br from-gray-900 to-gray-800 text-gray-200' : 'bg-gradient-to-br from-blue-50 to-gray-100 text-gray-800'
+        isDark ? 'bg-gradient-to-br from-black-900 to-black-800 text-black-200' : 'bg-gradient-to-br from-blue-50 to-black-100 text-black-800'
       }`}
     >
       <div className="container mx-auto py-6 px-4 max-w-5xl">

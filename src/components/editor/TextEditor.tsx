@@ -1,4 +1,5 @@
 import React, { RefObject } from 'react';
+import { motion } from 'framer-motion';
 
 interface TextEditorProps {
   text: string;
@@ -26,15 +27,27 @@ export default function TextEditor({
   isDark
 }: TextEditorProps) {
   return (
-    <div 
-      className={`rounded-b-xl relative z-editor ${
+    <motion.div 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className={`rounded-xl relative z-editor ${
         isDark 
-          ? 'bg-gray-800 bg-opacity-80 backdrop-blur-sm border border-gray-700' 
-          : 'bg-white bg-opacity-80 backdrop-blur-sm border border-gray-200'
-      } shadow-xl transition-colors duration-300 overflow-hidden`}
+          ? 'bg-black-800 bg-opacity-90 backdrop-blur-sm border border-black-700' 
+          : 'bg-white bg-opacity-95 backdrop-blur-sm border border-black-200'
+      } shadow-2xl transition-colors duration-300 overflow-hidden mx-4 mb-4`}
       style={{ minHeight: '70vh' }}
       ref={contentRef}
     >
+      <div className={`absolute inset-0 pointer-events-none ${isFocused ? 'opacity-100' : 'opacity-0'} transition-opacity duration-300`}>
+        <div className={`absolute inset-0 ${
+          isDark ? 'bg-blue-500' : 'bg-blue-400'
+        } opacity-5 rounded-xl`}></div>
+        <div className={`absolute inset-0 border-2 ${
+          isDark ? 'border-blue-500' : 'border-blue-400'
+        } rounded-xl`}></div>
+      </div>
+      
       <textarea
         ref={editorRef}
         value={text}
@@ -42,12 +55,12 @@ export default function TextEditor({
         onSelect={handleSelect}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className={`w-full h-full p-6 outline-none transition-all duration-300 resize-none ${
-          isDark ? 'bg-transparent text-gray-200' : 'bg-transparent text-gray-800'
-        } ${isFocused ? isDark ? 'ring-2 ring-blue-500' : 'ring-2 ring-blue-400' : ''} placeholder-gray-500`}
+        className={`w-full h-full p-8 outline-none transition-all duration-300 resize-none ${
+          isDark ? 'bg-transparent text-white' : 'bg-transparent text-black-800'
+        } placeholder-black-500`}
         style={{ 
           fontSize: `${fontSize}px`,
-          lineHeight: '1.7',
+          lineHeight: '1.8',
           fontFamily: fontFamily,
           minHeight: '70vh'
         }}
@@ -55,6 +68,6 @@ export default function TextEditor({
         placeholder="Start typing here..."
         spellCheck="true"
       ></textarea>
-    </div>
+    </motion.div>
   );
 }
