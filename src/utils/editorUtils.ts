@@ -268,10 +268,156 @@ export const downloadAsPDF = async (
     // Font settings for main content
     pdf.setFontSize(fontSize * 0.75); // Scale down font for PDF
     
-    // Process text for potential markdown formatting
-    // Just extract plain text for now as we want real text in PDF
-    const processedText = text;
+    // Process the text to extract formatting markers
+    // This will track which parts of the text should have which formatting
+    interface FormattedSegment {
+      text: string;
+      isBold: boolean;
+      isItalic: boolean;
+      isUnderline: boolean;
+    }
     
+    const formattedSegments: FormattedSegment[] = [];
+    
+    // Parse the text and create segments with format information
+    let currentIndex = 0;
+    
+    // Process bold (replace **text** with text and mark as bold)
+    const boldPattern = /\*\*(.*?)\*\*/g;
+    let boldMatch;
+    while ((boldMatch = boldPattern.exec(text)) !== null) {
+      // Add text before the match
+      if (boldMatch.index > currentIndex) {
+        formattedSegments.push({
+          text: text.substring(currentIndex, boldMatch.index),
+          isBold: false,
+          isItalic: false,
+          isUnderline: false
+        });
+      }
+      
+      // Add the bold text
+      formattedSegments.push({
+        text: boldMatch[1],
+        isBold: true,
+        isItalic: false,
+        isUnderline: false
+      });
+      
+      currentIndex = boldMatch.index + boldMatch[0].length;
+    }
+    
+    // Add any remaining text
+    if (currentIndex < text.length) {
+      formattedSegments.push({
+        text: text.substring(currentIndex),
+        isBold: false,
+        isItalic: false,
+        isUnderline: false
+      });
+    }
+    
+    // Now process italic and underline within each segment
+    const processedSegments: FormattedSegment[] = [];
+    
+    // Process each segment for italic and underline
+    formattedSegments.forEach(segment => {
+      const innerText = segment.text;
+      let innerCurrentIndex = 0;
+      let innerSegments: FormattedSegment[] = [];
+      
+      // Process italic
+      const italicPattern = /\*(.*?)\*/g;
+      let italicMatch;
+      while ((italicMatch = italicPattern.exec(innerText)) !== null) {
+        // Add text before the match
+        if (italicMatch.index > innerCurrentIndex) {
+          innerSegments.push({
+            text: innerText.substring(innerCurrentIndex, italicMatch.index),
+            isBold: segment.isBold,
+            isItalic: false,
+            isUnderline: false
+          });
+        }
+        
+        // Add the italic text
+        innerSegments.push({
+          text: italicMatch[1],
+          isBold: segment.isBold,
+          isItalic: true,
+          isUnderline: false
+        });
+        
+        innerCurrentIndex = italicMatch.index + italicMatch[0].length;
+      }
+      
+      // Add any remaining text
+      if (innerCurrentIndex < innerText.length) {
+        innerSegments.push({
+          text: innerText.substring(innerCurrentIndex),
+          isBold: segment.isBold,
+          isItalic: false,
+          isUnderline: false
+        });
+      }
+      
+      // If no italic was found, use the original segment
+      if (innerSegments.length === 0) {
+        innerSegments = [segment];
+      }
+      
+      // Now process underline within each inner segment
+      innerSegments.forEach(innerSegment => {
+        const underlineText = innerSegment.text;
+        let ulCurrentIndex = 0;
+        let ulSegments: FormattedSegment[] = [];
+        
+        // Process underline
+        const underlinePattern = /_(.*?)_/g;
+        let underlineMatch;
+        while ((underlineMatch = underlinePattern.exec(underlineText)) !== null) {
+          // Add text before the match
+          if (underlineMatch.index > ulCurrentIndex) {
+            ulSegments.push({
+              text: underlineText.substring(ulCurrentIndex, underlineMatch.index),
+              isBold: innerSegment.isBold,
+              isItalic: innerSegment.isItalic,
+              isUnderline: false
+            });
+          }
+          
+          // Add the underlined text
+          ulSegments.push({
+            text: underlineMatch[1],
+            isBold: innerSegment.isBold,
+            isItalic: innerSegment.isItalic,
+            isUnderline: true
+          });
+          
+          ulCurrentIndex = underlineMatch.index + underlineMatch[0].length;
+        }
+        
+        // Add any remaining text
+        if (ulCurrentIndex < underlineText.length) {
+          ulSegments.push({
+            text: underlineText.substring(ulCurrentIndex),
+            isBold: innerSegment.isBold,
+            isItalic: innerSegment.isItalic,
+            isUnderline: false
+          });
+        }
+        
+        // If no underline was found, use the original inner segment
+        if (ulSegments.length === 0) {
+          ulSegments = [innerSegment];
+        }
+        
+        // Add the underline-processed segments to the final list
+        processedSegments.push(...ulSegments);
+      });
+    });
+    
+    // Note: We've already extracted formatted segments, so we don't need processedText anymore
     // Define margins and starting position
     const margin = 20; // 20mm margin
     const startY = 30; // Start 30mm from top (after title)
@@ -279,10 +425,7 @@ export const downloadAsPDF = async (
     const pageHeight = pdf.internal.pageSize.getHeight();
     const contentWidth = pageWidth - (margin * 2);
     
-    // Split text into lines that fit within the page width
-    const textLines = pdf.splitTextToSize(processedText, contentWidth);
-    
-    // Calculate number of lines that fit on one page
+    // Calculate line height for text
     const lineHeight = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
     
     // Header and footer settings
@@ -327,28 +470,106 @@ export const downloadAsPDF = async (
       }
     };
     
-    // Add text to pages
+    // Add text to pages with formatting
     let currentPage = 0;
     let y = startY;
     
     // Add header and footer to first page
     addHeaderFooter(currentPage);
     
-    for (let i = 0; i < textLines.length; i++) {
-      // If we've reached the bottom margin or first line of a new page
-      if (y > pageHeight - (margin + (hasFooter ? 10 : 0)) || 
-          (currentPage > 0 && y === startY)) {
-        pdf.addPage();
-        currentPage++;
-        y = startY;
-        
-        // Add header and footer to the new page
-        addHeaderFooter(currentPage);
-      }
+    // Process each segment and apply the appropriate formatting
+    let currentLineText = '';
+    let currentX = margin;
+    
+    // Combine segments into full lines
+    for (let i = 0; i < processedSegments.length; i++) {
+      const segment = processedSegments[i];
+      const segmentLines = pdf.splitTextToSize(segment.text, contentWidth);
       
-      // Add the text line
-      pdf.text(textLines[i], margin, y);
-      y += lineHeight;
+      for (let j = 0; j < segmentLines.length; j++) {
+        const lineText = segmentLines[j];
+        
+        // If this is a new line or continuation of current line
+        if (j === 0 && currentLineText.length > 0) {
+          // Check if adding this text would exceed page width
+          const testWidth = pdf.getStringUnitWidth(currentLineText + lineText) * fontSize * 0.75 / pdf.internal.scaleFactor;
+          
+          if (testWidth < contentWidth) {
+            // Can fit on same line
+            // Apply formatting to the segment
+            if (segment.isBold) pdf.setFont('bold');
+            if (segment.isItalic) pdf.setFont(segment.isBold ? 'bolditalic' : 'italic');
+            if (segment.isUnderline) pdf.setLineWidth(0.1).setDrawColor(0, 0, 0);
+            
+            const segmentWidth = pdf.getStringUnitWidth(lineText) * fontSize * 0.75 / pdf.internal.scaleFactor;
+            
+            // Draw the text
+            pdf.text(lineText, currentX, y);
+            
+            // Draw underline if needed
+            if (segment.isUnderline) {
+              pdf.line(currentX, y + 1, currentX + segmentWidth, y + 1);
+            }
+            
+            // Reset formatting
+            pdf.setFont('normal');
+            
+            // Update current position
+            currentX += segmentWidth;
+            currentLineText += lineText;
+            continue;
+          } else {
+            // Start a new line
+            y += lineHeight;
+            currentX = margin;
+            currentLineText = '';
+            
+            // Check if need to add new page
+            if (y > pageHeight - (margin + (hasFooter ? 10 : 0))) {
+              pdf.addPage();
+              currentPage++;
+              y = startY;
+              addHeaderFooter(currentPage);
+            }
+          }
+        }
+        
+        // Apply formatting to the segment
+        if (segment.isBold) pdf.setFont('bold');
+        if (segment.isItalic) pdf.setFont(segment.isBold ? 'bolditalic' : 'italic');
+        if (segment.isUnderline) pdf.setLineWidth(0.1).setDrawColor(0, 0, 0);
+        
+        // Draw the text
+        pdf.text(lineText, currentX, y);
+        
+        // Calculate segment width
+        const segmentWidth = pdf.getStringUnitWidth(lineText) * fontSize * 0.75 / pdf.internal.scaleFactor;
+        
+        // Draw underline if needed
+        if (segment.isUnderline) {
+          pdf.line(currentX, y + 1, currentX + segmentWidth, y + 1);
+        }
+        
+        // Reset formatting
+        pdf.setFont('normal');
+        
+        // Update current position
+        currentX = segment.text.includes('\n') || j < segmentLines.length - 1 ? margin : currentX + segmentWidth;
+        currentLineText = segment.text.includes('\n') || j < segmentLines.length - 1 ? '' : currentLineText + lineText;
+        
+        // Move to next line if needed
+        if (segment.text.includes('\n') || j < segmentLines.length - 1) {
+          y += lineHeight;
+          
+          // Check if need to add new page
+          if (y > pageHeight - (margin + (hasFooter ? 10 : 0))) {
+            pdf.addPage();
+            currentPage++;
+            y = startY;
+            addHeaderFooter(currentPage);
+          }
+        }
+      }
     }
     
     // Save the PDF
