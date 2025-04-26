@@ -1,140 +1,6 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #000000;
-  --text-primary: #000000;
-  --text-secondary: #4b5563;
-  --accent: #3b82f6;
-  --border: #e5e7eb;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --error: #ef4444;
-  --card: #ffffff;
-  --card-foreground: #000000;
-  --popover: #ffffff;
-  --popover-foreground: #000000;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  direction: ltr;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-accent: var(--accent);
-  --color-border: var(--border);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-error: var(--error);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-.dark {
-  --background: #000000;
-  --foreground: #ffffff;
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
-  --accent: #3b82f6;
-  --border: #374151;
-  --success: #059669;
-  --warning: #d97706;
-  --error: #dc2626;
-  --card: #121212;
-  --card-foreground: #ffffff;
-  --popover: #1e1e1e;
-  --popover-foreground: #ffffff;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-}
-
-html, body {
-  background-color: var(--background);
-  color: var(--foreground);
-  font-family: Inter, Arial, sans-serif;
-  direction: ltr;
-  unicode-bidi: normal;
-  min-height: 100vh;
-  height: 100%;
-}
-
-html.dark body {
-  background-color: #121212;
-  color: var(--foreground);
-}
-
-html.light body {
-  background-color: #f9fafb;
-  color: var(--foreground);
-}
-
-* {
-  direction: ltr;
-  box-sizing: border-box;
-}
-
-/* Custom scrollbar for enhanced UX */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--border);
-  border-radius: 4px;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background-color: #4b5563;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent);
-}
-
-/* Focus styles for accessibility */
-*:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* Transitions for smoother UX */
-button, a, select, input, textarea {
-  transition: all 0.2s ease;
-}
-
-/* Toast notification custom styling */
-.Toastify__toast {
-  border-radius: 8px !important;
-  font-family: Inter, Arial, sans-serif !important;
-}
-
-.dark .Toastify__toast {
-  background-color: #1e1e1e !important;
-  color: #e5e7eb !important;
-}
-
-.Toastify__toast-icon {
-  margin-right: 12px !important;
-}
-
-/* Dropdown menu animation */
-.group:hover .group-hover\:block {
-  animation: fadeIn 0.2s ease-in-out;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 @keyframes fadeIn {
   from {
@@ -147,15 +13,152 @@ button, a, select, input, textarea {
   }
 }
 
-/* Typography adjustments */
-textarea {
-  font-kerning: normal;
-  text-rendering: optimizeLegibility;
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
 }
 
-@media (max-width: 640px) {
-  .container {
-    padding-left: 12px;
-    padding-right: 12px;
+@keyframes pulseGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5);
   }
+  70% {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.animate-pulseGlow {
+  animation: pulseGlow 2s infinite;
+}
+
+/* Dropdown menu animations */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-menu {
+  animation: slideDown 0.2s ease-out forwards;
+  z-index: 100;
+  position: absolute;
+}
+
+/* Custom scrollbar for webkit browsers */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(107, 114, 128, 0.7);
+}
+
+/* Custom scrollbar for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+/* Dark mode text selection */
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.5);
+  color: #ffffff;
+}
+
+/* Light mode text selection */
+::selection {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: #000000;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid rgb(59, 130, 246);
+  outline-offset: 2px;
+}
+
+/* Z-index management - Increase the values significantly to ensure proper stacking */
+.z-dropdown {
+  z-index: 9999 !important; /* Use !important to override any inline styles */
+  position: relative;
+}
+
+.z-settings {
+  z-index: 9000 !important;
+  position: relative;
+}
+
+.z-editor {
+  z-index: 1 !important;
+}
+
+/* Background gradients for dark mode */
+.dark body {
+  background: linear-gradient(135deg, #1a1c23 0%, #121417 100%);
+}
+
+/* Custom utility classes */
+.bg-glass-light {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.bg-glass-dark {
+  background: rgba(17, 24, 39, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+/* Improve text area styling */
+textarea {
+  background-image: linear-gradient(transparent, transparent);
+  -webkit-appearance: none;
+}
+
+/* Make dropdown menus more visible */
+.dropdown-menu-container {
+  isolation: isolate;
+  position: relative;
+  z-index: 9999 !important;
+}
+
+.dropdown-dark {
+  background-color: rgba(31, 41, 55, 0.98);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.8);
+}
+
+.dropdown-light {
+  background-color: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Force dropdowns to appear on top */
+.dropdown-menu {
+  animation: slideDown 0.2s ease-out forwards;
+  z-index: 9999 !important;
+  position: absolute;
 }

@@ -5,18 +5,25 @@ import { useTheme } from 'next-themes';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { jsPDF } from 'jspdf';
-import { 
-  FiBold, FiItalic, FiUnderline, FiAlignLeft, 
-  FiAlignRight, FiList, FiClipboard, 
-  FiDownload, FiSun, FiMoon, FiSettings, FiSearch,
-  FiGithub, FiTrash2, FiPlus, FiMinus, FiType, FiCode
-} from 'react-icons/fi';
 import { useLocalStorageValue } from '@react-hookz/web';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Import components
+import Header from '@/components/layout/Header';
+import SearchPanel from '@/components/panels/SearchPanel';
+import FormattingPanel from '@/components/panels/FormattingPanel';
+import SettingsPanel from '@/components/panels/SettingsPanel';
+import TextEditor from '@/components/editor/TextEditor';
+import StatusBar from '@/components/layout/StatusBar';
+import WelcomeModal from '@/components/modals/WelcomeModal';
+
+// Import utilities
+import { getTextStatistics, downloadAsText, downloadAsMarkdown, downloadAsPDF, downloadAsHtml, downloadAsWord, downloadAsImage, PdfPageSize, PdfOrientation } from '@/utils/editorUtils';
 
 export default function Home() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  
   // Use correct type for useLocalStorageValue
   const textStorage = useLocalStorageValue<string>('editorText', {
     defaultValue: 'Start typing here...'
@@ -39,30 +46,34 @@ export default function Home() {
   const setFontSize = fontSizeStorage.set;
   
   const fontFamilyStorage = useLocalStorageValue<string>('fontFamily', {
-    defaultValue: 'Inter'
+    defaultValue: 'var(--font-inter)'
   });
-  const fontFamily = fontFamilyStorage.value ?? 'Inter';
+  const fontFamily = fontFamilyStorage.value ?? 'var(--font-inter)';
   const setFontFamily = fontFamilyStorage.set;
   
   const [showSettings, setShowSettings] = useState(false);
   const [showFormatting, setShowFormatting] = useState(false);
-  const [, setSelection] = useState({ start: 0, end: 0 });
+  // Selection state is used in handleSelect but can be removed if not needed elsewhere
+  // Commenting out to fix the unused variable error
+  // const [selection, setSelection] = useState({ start: 0, end: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [replaceQuery, setReplaceQuery] = useState('');
   const [lastSaved, setLastSaved] = useState(new Date());
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
-  const editorRef = useRef<HTMLTextAreaElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<HTMLTextAreaElement>(null!) as React.RefObject<HTMLTextAreaElement>;
+  // Make contentRef non-nullable to match expected type in TextEditor component
+  const contentRef = useRef<HTMLDivElement>(null!) as React.RefObject<HTMLDivElement>;
+  const [welcomeModal, setWelcomeModal] = useState(false);
 
-  // Font family options
+  // Font family options - now using custom loaded fonts
   const fontOptions = [
-    { value: 'Inter', label: 'Inter' },
+    { value: 'var(--font-inter)', label: 'Inter' },
+    { value: 'var(--font-poppins)', label: 'Poppins' },
+    { value: 'var(--font-roboto-mono)', label: 'Roboto Mono' },
     { value: 'Arial', label: 'Arial' },
     { value: 'Georgia', label: 'Georgia' },
-    { value: 'monospace', label: 'Monospace' },
-    { value: 'Courier New', label: 'Courier New' },
     { value: 'Times New Roman', label: 'Times New Roman' },
   ];
 
@@ -86,6 +97,13 @@ export default function Home() {
     // Save initial state to undo stack if not already there
     if (undoStack.length === 0 && text) {
       setUndoStack([text]);
+    }
+
+    // Show welcome modal for new users
+    const hasVisited = localStorage.getItem('visited');
+    if (!hasVisited) {
+      setWelcomeModal(true);
+      localStorage.setItem('visited', 'true');
     }
   }, [setTheme, text, undoStack.length]);
 
@@ -120,8 +138,11 @@ export default function Home() {
   // Register keyboard shortcuts
   useHotkeys('ctrl+s, cmd+s', (e) => {
     e.preventDefault();
-    downloadText();
-    toast.success('Document saved!');
+    handleDownloadText();
+    toast.success('Document saved!', {
+      icon: () => <span>💾</span>,
+      position: 'bottom-center'
+    });
   });
 
   useHotkeys('ctrl+f, cmd+f', (e) => {
@@ -158,6 +179,17 @@ export default function Home() {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     localStorage.setItem('theme', newTheme);
+
+    // Visual feedback for theme change
+    toast.info(`${newTheme === 'dark' ? 'Dark' : 'Light'} mode activated`, {
+      icon: () => (
+        <span role="img" aria-label="theme icon">
+          {newTheme === 'dark' ? '🌙' : '☀️'}
+        </span>
+      ),
+      position: 'bottom-center',
+      autoClose: 1500
+    });
   };
 
   // Handle text change and save to undo stack
@@ -172,14 +204,14 @@ export default function Home() {
     
     setText(newText);
   };
-
+  
   // Track selection changes
   const handleSelect = () => {
     if (editorRef.current) {
-      setSelection({
-        start: editorRef.current.selectionStart,
-        end: editorRef.current.selectionEnd
-      });
+      
+      
+      // We can use these values directly here if needed
+      // console.log(`Selection: ${selectionStart} to ${selectionEnd}`);
     }
   };
 
@@ -190,6 +222,13 @@ export default function Home() {
       setUndoStack(prev => prev.slice(1)); // Remove first item
       setRedoStack(prev => [text, ...prev]); // Add current text to redo stack
       setText(previous);
+      
+      toast.info('Undo action', {
+        position: 'bottom-center',
+        autoClose: 1000,
+        hideProgressBar: true,
+        icon: () => <span>⏪</span>
+      });
     }
   };
 
@@ -200,6 +239,13 @@ export default function Home() {
       setRedoStack(prev => prev.slice(1)); // Remove first item
       setUndoStack(prev => [text, ...prev]); // Add current text to undo stack
       setText(next);
+      
+      toast.info('Redo action', {
+        position: 'bottom-center',
+        autoClose: 1000,
+        hideProgressBar: true,
+        icon: () => <span>⏩</span>
+      });
     }
   };
 
@@ -208,124 +254,127 @@ export default function Home() {
     // Add current text to undo stack before clearing
     setUndoStack(prev => [text, ...prev.slice(0, 19)]);
     setText('');
-    toast.info('Text cleared');
+    toast.info('Text cleared', { icon: () => <span>🧹</span> });
   };
 
   // Download text as .txt file
-  const downloadText = () => {
-    const element = document.createElement('a');
-    const file = new Blob([text], {type: 'text/plain'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${fileName || 'texteditor-note'}.txt`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success('Downloaded as TXT');
+  const handleDownloadText = () => {
+    console.log("handleDownloadText called with:", text, fileName);
+    try {
+      downloadAsText(text, fileName);
+      
+      // Visual feedback animation using toast
+      toast.success('Downloaded as TXT', { 
+        icon: () => <span>📄</span>,
+        position: 'bottom-center'
+      });
+      console.log("Text download completed successfully");
+    } catch (error) {
+      console.error("Error in text download:", error);
+      toast.error('Failed to download as text', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
+    }
   };
 
   // Export as PDF functionality
-  const exportAsPDF = async () => {
+  const handleExportAsPDF = async (pageSize?: PdfPageSize, orientation?: PdfOrientation) => {
+    console.log("handleExportAsPDF called with:", text, fileName, fontSize, pageSize, orientation);
     try {
-      toast.info('Preparing PDF...', { autoClose: false, toastId: 'pdf-processing' });
-      
-      // Create a new jsPDF instance
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-      });
-      
-      // Set PDF properties
-      pdf.setProperties({
-        title: fileName || 'Text Editor Document',
-        subject: 'Document created with Text Editor',
-        creator: 'Text Editor',
-        author: 'Text Editor User',
-        keywords: 'text, document'
-      });
-      
-      // Always use black text for better readability regardless of theme
-      pdf.setTextColor(0, 0, 0);
-      
-      // Add title to PDF
-      pdf.setFontSize(20);
-      pdf.text(fileName || 'Untitled Document', 20, 20);
-      
-      // Add a line under the title - use dark gray for the line
-      pdf.setDrawColor(50, 50, 50);
-      pdf.line(20, 23, 190, 23);
-      
-      // Font settings for main content
-      pdf.setFontSize(fontSize * 0.75); // Scale down font for PDF
-      
-      // Process text for potential markdown formatting
-      // Just extract plain text for now as we want real text in PDF
-      const processedText = text;
-      
-      // Define margins and starting position
-      const margin = 20; // 20mm margin
-      const startY = 30; // Start 30mm from top (after title)
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const contentWidth = pageWidth - (margin * 2);
-      
-      // Split text into lines that fit within the page width
-      const textLines = pdf.splitTextToSize(processedText, contentWidth);
-      
-      // Calculate number of lines that fit on one page
-      const lineHeight = fontSize * 0.3527; // Convert pt to mm (1pt = 0.3527mm)
-      
-      // Add text to pages
-      let currentPage = 0;
-      let y = startY;
-      
-      for (let i = 0; i < textLines.length; i++) {
-        // If we've reached the bottom margin or first line of a new page
-        if (y > pageHeight - margin || 
-            (currentPage > 0 && y === startY)) {
-          pdf.addPage();
-          currentPage++;
-          y = startY;
-        }
-        
-        // Add the text line
-        pdf.text(textLines[i], margin, y);
-        y += lineHeight;
-      }
-      
-      // Save the PDF
-      pdf.save(`${fileName || 'texteditor-note'}.pdf`);
-      
-      // Close the toast and show success message
-      toast.dismiss('pdf-processing');
-      toast.success('Downloaded as PDF with selectable text');
-      
+      await downloadAsPDF(text, fileName, fontSize, pageSize, orientation);
+      console.log("PDF export completed successfully");
     } catch (error) {
-      console.error('PDF generation failed:', error);
-      toast.dismiss('pdf-processing');
-      toast.error('Failed to generate PDF. Please try again.');
+      console.error("Error in PDF export:", error);
+      toast.error('Failed to export as PDF', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
     }
   };
 
   // Export as Markdown functionality
-  const exportAsMarkdown = () => {
-    const element = document.createElement('a');
-    const file = new Blob([text], {type: 'text/markdown'});
-    element.href = URL.createObjectURL(file);
-    element.download = `${fileName || 'texteditor-note'}.md`;
-    document.body.appendChild(element);
-    element.click();
-    document.body.removeChild(element);
-    toast.success('Downloaded as Markdown');
+  const handleExportAsMarkdown = () => {
+    console.log("handleExportAsMarkdown called with:", text, fileName);
+    try {
+      downloadAsMarkdown(text, fileName);
+      
+      toast.success('Downloaded as Markdown', {
+        icon: () => <span>📝</span>,
+        position: 'bottom-center'
+      });
+      console.log("Markdown export completed successfully");
+    } catch (error) {
+      console.error("Error in Markdown export:", error);
+      toast.error('Failed to export as Markdown', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
+    }
+  };
+
+  // Export as HTML functionality
+  const handleExportAsHtml = () => {
+    console.log("handleExportAsHtml called with:", text, fileName);
+    try {
+      downloadAsHtml(text, fileName);
+      console.log("HTML export completed successfully");
+    } catch (error) {
+      console.error("Error in HTML export:", error);
+      toast.error('Failed to export as HTML', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
+    }
+  };
+
+  // Export as Word functionality
+  const handleExportAsWord = () => {
+    console.log("handleExportAsWord called with:", text, fileName);
+    try {
+      downloadAsWord(text, fileName);
+      console.log("Word export completed successfully");
+    } catch (error) {
+      console.error("Error in Word export:", error);
+      toast.error('Failed to export as Word', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
+    }
+  };
+
+  // Export as Image functionality
+  const handleExportAsImage = () => {
+    console.log("handleExportAsImage called with contentRef and fileName:", fileName);
+    if (!contentRef.current) {
+      console.error("ContentRef is null");
+      toast.error('Could not capture the editor content');
+      return;
+    }
+    try {
+      downloadAsImage(contentRef, fileName);
+      console.log("Image export completed successfully");
+    } catch (error) {
+      console.error("Error in Image export:", error);
+      toast.error('Failed to export as image', {
+        icon: () => <span>❌</span>,
+        position: 'bottom-center'
+      });
+    }
   };
 
   // Copy to clipboard functionality
   const copyToClipboard = () => {
     navigator.clipboard.writeText(text).then(() => {
-      toast.success('Text copied to clipboard!');
+      toast.success('Text copied to clipboard!', {
+        icon: () => <span>📋</span>,
+        position: 'bottom-center'
+      });
     }, (err) => {
       console.error('Could not copy text: ', err);
-      toast.error('Failed to copy text');
+      toast.error('Failed to copy text', {
+        icon: () => <span>❌</span>
+      });
     });
   };
 
@@ -370,6 +419,21 @@ export default function Home() {
     setUndoStack(prev => [text, ...prev.slice(0, 19)]);
     setText(newText);
     
+    // Visual feedback
+    const formatNames = {
+      bold: 'Bold',
+      italic: 'Italic',
+      underline: 'Underlined',
+      code: 'Code',
+      list: 'List'
+    };
+    
+    toast.info(`Applied ${formatNames[format]} formatting`, {
+      position: 'bottom-center',
+      autoClose: 1000,
+      hideProgressBar: true
+    });
+    
     // Restore focus and selection
     setTimeout(() => {
       textarea.focus();
@@ -398,6 +462,13 @@ export default function Home() {
     // Add to undo stack
     setUndoStack(prev => [text, ...prev.slice(0, 19)]);
     setText(newText);
+    
+    // Visual feedback
+    toast.info('Text indented', {
+      position: 'bottom-center',
+      autoClose: 1000,
+      hideProgressBar: true
+    });
     
     // Restore focus
     setTimeout(() => {
@@ -428,6 +499,13 @@ export default function Home() {
     // Add to undo stack
     setUndoStack(prev => [text, ...prev.slice(0, 19)]);
     setText(newText);
+    
+    // Visual feedback
+    toast.info('Text outdented', {
+      position: 'bottom-center',
+      autoClose: 1000,
+      hideProgressBar: true
+    });
     
     // Restore focus
     setTimeout(() => {
@@ -495,10 +573,9 @@ export default function Home() {
     
     // Count occurrences
     let count = 0;
-    const newText = text;
     let pos = -1;
     
-    while ((pos = newText.indexOf(searchQuery, pos + 1)) !== -1) {
+    while ((pos = text.indexOf(searchQuery, pos + 1)) !== -1) {
       count++;
     }
     
@@ -515,392 +592,159 @@ export default function Home() {
     }
   };
 
-  // Calculate statistics
-  const getStatistics = () => {
-    const words = text.trim() ? text.trim().split(/\s+/).filter(Boolean).length : 0;
-    const chars = text.length;
-    const lines = text.split('\n').length;
+  // Function to create a new document
+  const createNewDocument = () => {
+    if (text !== 'Start typing here...' && text !== '') {
+      setUndoStack(prev => [text, ...prev.slice(0, 19)]);
+    }
+    setText('Start typing here...');
+    setFileName('Untitled Document');
     
-    return { words, chars, lines };
+    toast.success('New document created', {
+      icon: () => <span>📄</span>,
+      position: 'bottom-center'
+    });
   };
-
+  
   if (!mounted) return null;
 
   const currentTheme = theme === 'system' ? resolvedTheme : theme;
   const isDark = currentTheme === 'dark';
-  const stats = getStatistics();
-  const formattedTime = lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const stats = getTextStatistics(text);
 
   return (
     <main 
-      className={`min-h-screen transition-colors duration-300 ${
-        isDark ? 'bg-gray-900 text-gray-200' : 'bg-gray-100 text-gray-800'
-      }`} 
-      dir="ltr"
+      className={`min-h-screen transition-all duration-500 ${
+        isDark ? 'bg-gradient-to-br from-gray-900 to-gray-800 text-gray-200' : 'bg-gradient-to-br from-blue-50 to-gray-100 text-gray-800'
+      }`}
     >
-      <div className="container mx-auto py-4 px-4 max-w-5xl">
-        {/* Header */}
-        <header className={`w-full py-3 px-6 rounded-t-xl ${
-          isDark ? 'bg-gray-800' : 'bg-white'
-        } shadow-md flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-blue-500 text-white">
-              <FiType className="h-5 w-5" />
-            </div>
-            <div>
-              <input 
-                type="text"
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                className={`font-medium text-lg px-2 py-1 rounded border ${
-                  isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-300'
-                } focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-auto max-w-[200px]`}
-                placeholder="Untitled Document"
+      <div className="container mx-auto py-6 px-4 max-w-5xl">
+        {/* Header using imported component */}
+        <Header 
+          fileName={fileName}
+          setFileName={setFileName}
+          lastSaved={lastSaved}
+          isDark={isDark}
+          toggleTheme={toggleTheme}
+          setShowSearch={setShowSearch}
+          setShowFormatting={setShowFormatting}
+          setShowSettings={setShowSettings}
+          showSearch={showSearch}
+          showFormatting={showFormatting}
+          showSettings={showSettings}
+          createNewDocument={createNewDocument}
+        />
+        
+        {/* Search Panel - conditionally rendered with animation */}
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <SearchPanel 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                replaceQuery={replaceQuery}
+                setReplaceQuery={setReplaceQuery}
+                handleSearch={handleSearch}
+                handleReplace={handleReplace}
+                handleReplaceAll={handleReplaceAll}
+                isDark={isDark}
               />
-              <div className="text-xs text-gray-500 ml-2 mt-0.5">
-                Last saved at {formattedTime}
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 flex-wrap justify-end">
-            <button
-              onClick={() => setShowSearch(prev => !prev)}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-              } ${showSearch ? 'bg-blue-500 text-white hover:bg-blue-600' : ''}`}
-              title="Search (Ctrl+F)"
-            >
-              <FiSearch className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setShowFormatting(prev => !prev)}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-              } ${showFormatting ? 'bg-blue-500 text-white hover:bg-blue-600' : ''}`}
-              title="Formatting Options"
-            >
-              <FiBold className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setShowSettings(prev => !prev)}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-              } ${showSettings ? 'bg-blue-500 text-white hover:bg-blue-600' : ''}`}
-              title="Settings"
-            >
-              <FiSettings className="h-4 w-4" />
-            </button>
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-              }`}
-              title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              {isDark ? <FiSun className="h-4 w-4" /> : <FiMoon className="h-4 w-4" />}
-            </button>
-            <a
-              href="https://github.com/yourusername/txt-editor"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                isDark ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-              }`}
-              title="View on GitHub"
-            >
-              <FiGithub className="h-4 w-4" />
-            </a>
-          </div>
-        </header>
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        {/* Search Panel - conditionally rendered */}
-        {showSearch && (
-          <div className={`p-3 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-x border-b`}>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex-1 min-w-[200px]">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search..."
-                  className={`w-full px-3 py-2 rounded text-sm ${
-                    isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-300'
-                  } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <input
-                  type="text"
-                  value={replaceQuery}
-                  onChange={(e) => setReplaceQuery(e.target.value)}
-                  placeholder="Replace with..."
-                  className={`w-full px-3 py-2 rounded text-sm ${
-                    isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-50 border-gray-300'
-                  } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleSearch}
-                  className={`px-3 py-2 rounded text-sm ${
-                    isDark ? 'bg-blue-800 hover:bg-blue-700 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'
-                  }`}
-                >
-                  Find
-                </button>
-                <button
-                  onClick={handleReplace}
-                  className={`px-3 py-2 rounded text-sm ${
-                    isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'
-                  }`}
-                >
-                  Replace
-                </button>
-                <button
-                  onClick={handleReplaceAll}
-                  className={`px-3 py-2 rounded text-sm ${
-                    isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-600 hover:bg-gray-700 text-white'
-                  }`}
-                >
-                  Replace All
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Formatting Panel - conditionally rendered with animation */}
+        <AnimatePresence>
+          {showFormatting && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <FormattingPanel 
+                applyFormatting={applyFormatting}
+                indentText={indentText}
+                outdentText={outdentText}
+                isDark={isDark}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        {/* Formatting Toolbar - conditionally rendered */}
-        {showFormatting && (
-          <div className={`p-3 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-x border-b flex flex-wrap gap-2`}>
-            <button 
-              onClick={() => applyFormatting('bold')}
-              title="Bold (Ctrl+B)"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+        {/* Settings Panel - conditionally rendered with animation */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
             >
-              <FiBold className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={() => applyFormatting('italic')}
-              title="Italic (Ctrl+I)"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiItalic className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={() => applyFormatting('underline')}
-              title="Underline (Ctrl+U)"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiUnderline className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={() => applyFormatting('code')}
-              title="Code"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiCode className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={() => applyFormatting('list')}
-              title="List"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiList className="h-4 w-4" />
-            </button>
-            <span className="border-r h-6 mx-1 border-gray-300 dark:border-gray-700"></span>
-            <button 
-              onClick={indentText}
-              title="Indent"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiAlignRight className="h-4 w-4" />
-            </button>
-            <button 
-              onClick={outdentText}
-              title="Outdent"
-              className={`p-2 rounded ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
-            >
-              <FiAlignLeft className="h-4 w-4" />
-            </button>
-          </div>
-        )}
+              <SettingsPanel 
+                fontSize={fontSize}
+                setFontSize={setFontSize}
+                fontFamily={fontFamily}
+                setFontFamily={setFontFamily}
+                fontOptions={fontOptions}
+                handleUndo={handleUndo}
+                handleRedo={handleRedo}
+                undoStack={undoStack}
+                redoStack={redoStack}
+                clearText={clearText}
+                copyToClipboard={copyToClipboard}
+                downloadText={handleDownloadText}
+                exportAsMarkdown={handleExportAsMarkdown}
+                exportAsPDF={handleExportAsPDF}
+                exportAsHtml={handleExportAsHtml}
+                exportAsWord={handleExportAsWord}
+                exportAsImage={handleExportAsImage}
+                isDark={isDark}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
         
-        {/* Settings Panel - conditionally rendered */}
-        {showSettings && (
-          <div className={`p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-x border-b`}>
-            <div className="flex flex-wrap items-center gap-6">
-              <div>
-                <label className="block text-sm font-medium mb-1">Font Size</label>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => setFontSize(Math.max(12, fontSize - 2))}
-                    className={`p-1 rounded ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                  >
-                    <FiMinus className="h-4 w-4" />
-                  </button>
-                  <span className="text-sm w-6 text-center">{fontSize}</span>
-                  <button 
-                    onClick={() => setFontSize(Math.min(32, fontSize + 2))}
-                    className={`p-1 rounded ${isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                  >
-                    <FiPlus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Font Family</label>
-                <select
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
-                  className={`px-2 py-1 rounded ${
-                    isDark ? 'bg-gray-700 border-gray-600' : 'bg-gray-200 border-gray-300'
-                  } border focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                >
-                  {fontOptions.map(font => (
-                    <option key={font.value} value={font.value}>{font.label}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={handleUndo}
-                  disabled={undoStack.length === 0}
-                  className={`py-2 px-3 text-sm rounded flex items-center gap-1 ${
-                    isDark 
-                      ? undoStack.length === 0 ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'
-                      : undoStack.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                  title="Undo (Ctrl+Z)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M3 7v6h6"></path>
-                    <path d="M3 13c0-4.97 4.03-9 9-9a9 9 0 0 1 9 9c0 4.97-4.03 9-9 9a9 9 0 0 1-8-5"></path>
-                  </svg>
-                  Undo
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={redoStack.length === 0}
-                  className={`py-2 px-3 text-sm rounded flex items-center gap-1 ${
-                    isDark 
-                      ? redoStack.length === 0 ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : 'bg-gray-700 hover:bg-gray-600'
-                      : redoStack.length === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                  title="Redo (Ctrl+Y)"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 7v6h-6"></path>
-                    <path d="M21 13c0-4.97-4.03-9-9-9a9 9 0 0 0-9 9c0 4.97 4.03 9 9 9a9 9 0 0 0 8-5"></path>
-                  </svg>
-                  Redo
-                </button>
-                <span className="border-r h-8 mx-1 border-gray-300 dark:border-gray-700"></span>
-                <button
-                  onClick={clearText}
-                  className={`py-2 px-3 text-sm rounded flex items-center gap-1 ${
-                    isDark ? 'bg-red-900 hover:bg-red-800 text-white' : 'bg-red-100 hover:bg-red-200 text-red-700'
-                  }`}
-                >
-                  <FiTrash2 className="h-4 w-4" />
-                  Clear
-                </button>
-                <button
-                  onClick={copyToClipboard}
-                  className={`py-2 px-3 text-sm rounded flex items-center gap-1 ${
-                    isDark ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
-                >
-                  <FiClipboard className="h-4 w-4" />
-                  Copy
-                </button>
-                <div className="relative group">
-                  <button
-                    className={`py-2 px-3 text-sm rounded flex items-center gap-1 ${
-                      isDark ? 'bg-blue-900 hover:bg-blue-800 text-white' : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
-                    }`}
-                  >
-                    <FiDownload className="h-4 w-4" />
-                    Export
-                  </button>
-                  <div className={`absolute z-10 right-0 mt-1 w-48 rounded-md shadow-lg py-1 ${
-                    isDark ? 'bg-gray-800' : 'bg-white'
-                  } ring-1 ring-black ring-opacity-5 hidden group-hover:block`}>
-                    <button
-                      onClick={downloadText}
-                      className={`block px-4 py-2 text-sm w-full text-left ${
-                        isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      Download as TXT
-                    </button>
-                    <button
-                      onClick={exportAsMarkdown}
-                      className={`block px-4 py-2 text-sm w-full text-left ${
-                        isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      Download as Markdown
-                    </button>
-                    <button
-                      onClick={exportAsPDF}
-                      className={`block px-4 py-2 text-sm w-full text-left ${
-                        isDark ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      Download as PDF
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        
-        {/* Editor Area */}
-        <div 
-          className={`rounded-b-xl ${isDark ? 'bg-gray-800' : 'bg-white'} shadow-lg transition-colors duration-300 overflow-hidden`}
-          style={{ minHeight: '70vh' }}
-          ref={contentRef}
+        {/* Text Editor Component */}
+        <motion.div 
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
         >
-          <textarea
-            ref={editorRef}
-            value={text}
-            onChange={handleTextChange}
-            onSelect={handleSelect}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            className={`w-full h-full p-6 outline-none transition-all duration-300 resize-none ${
-              isDark ? 'bg-gray-800 text-gray-200' : 'bg-white text-gray-800'
-            } ${isFocused ? isDark ? 'ring-2 ring-blue-500' : 'ring-2 ring-blue-400' : ''}`}
-            style={{ 
-              fontSize: `${fontSize}px`,
-              lineHeight: '1.6',
-              fontFamily: fontFamily,
-              minHeight: '70vh'
-            }}
-            dir="ltr"
-            placeholder="Start typing here..."
-            spellCheck="true"
-          ></textarea>
-        </div>
+          <TextEditor 
+            text={text}
+            handleTextChange={handleTextChange}
+            handleSelect={handleSelect}
+            editorRef={editorRef}
+            isFocused={isFocused}
+            setIsFocused={setIsFocused}
+            fontSize={fontSize}
+            fontFamily={fontFamily}
+            isDark={isDark}
+            contentRef={contentRef}
+          />
+        </motion.div>
         
-        {/* Status Bar */}
-        <div className={`mt-4 p-2 rounded-lg flex flex-wrap justify-between items-center text-sm ${
-          isDark ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-600'
-        } shadow-sm`}>
-          <div className="flex gap-4">
-            <div>{stats.words} words</div>
-            <div>{stats.chars} characters</div>
-            <div>{stats.lines} lines</div>
-          </div>
-          <div className="flex items-center">
-            <span className="inline-block h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-            Auto-saved at {formattedTime}
-          </div>
-        </div>
+        {/* Status Bar Component */}
+        <motion.div 
+          initial={{ y: 10, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <StatusBar 
+            stats={stats}
+            lastSaved={lastSaved}
+            isDark={isDark}
+          />
+        </motion.div>
 
         {/* Toast notifications container */}
         <ToastContainer
@@ -915,6 +759,16 @@ export default function Home() {
           pauseOnHover
           theme={isDark ? "dark" : "light"}
         />
+        
+        {/* Welcome Modal */}
+        <AnimatePresence>
+          {welcomeModal && (
+            <WelcomeModal
+              isDark={isDark}
+              onClose={() => setWelcomeModal(false)}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );

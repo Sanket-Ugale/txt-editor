@@ -1,11 +1,26 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Poppins, Roboto_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
+import "../styles/animations.css"; // Add import for animations.css
 
+// Load multiple fonts for better typography
 const inter = Inter({ 
   subsets: ["latin"],
   variable: '--font-inter',
+  display: 'swap',
+});
+
+const poppins = Poppins({
+  weight: ['400', '500', '600', '700'],
+  subsets: ["latin"],
+  variable: '--font-poppins',
+  display: 'swap',
+});
+
+const robotoMono = Roboto_Mono({
+  subsets: ["latin"],
+  variable: '--font-roboto-mono',
   display: 'swap',
 });
 
@@ -19,11 +34,18 @@ export const metadata: Metadata = {
     title: "TextEditor Pro",
     description: "A modern rich text editor with advanced formatting and export options",
     type: "website",
+    images: [{ url: "/og-image.png" }]
   },
   twitter: {
     card: "summary_large_image",
     title: "TextEditor Pro",
     description: "A modern rich text editor with advanced formatting and export options",
+    images: ["/twitter-image.png"]
+  },
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/apple-touch-icon.png',
   }
 };
 
@@ -33,8 +55,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" dir="ltr" suppressHydrationWarning className={inter.variable}>
-      <body className={inter.className}>
+    <html lang="en" dir="ltr" suppressHydrationWarning className={`${inter.variable} ${poppins.variable} ${robotoMono.variable} scroll-smooth`}>
+      <body className={`${inter.className} antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
