@@ -118,7 +118,7 @@ export default function Header({
         <motion.a
           whileHover={{ scale: 1.05, rotate: 5 }}
           whileTap={{ scale: 0.95 }}
-          href="https://github.com/yourusername/txt-editor"
+          href="https://github.com/sanket-ugale/txt-editor"
           target="_blank"
           rel="noopener noreferrer"
           className={`p-2.5 rounded-lg transition-all duration-200 ${
